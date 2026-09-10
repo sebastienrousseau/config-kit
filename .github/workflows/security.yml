@@ -1,4 +1,8 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
 # SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Self-contained, for the same reason as publish.yml: every other repository in
+# the family depends on this package, so this package depends on none of them.
 
 name: Security Analysis
 
@@ -14,12 +18,91 @@ permissions:
   contents: read
 
 jobs:
-  security:
-    name: Supply chain
-    uses: sebastienrousseau/config/.github/workflows/reusable-security.yml@main
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
-      pull-requests: write
-    with:
-      node-version: '20'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        with:
+          languages: javascript-typescript
+
+      - name: Analyse
+        uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+
+  advisories:
+    name: Dependency advisories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Install from the committed lockfile
+        run: npm ci
+
+      # This package has no dependencies at all, so both audits must come back
+      # clean; a finding here means something new arrived and is worth reading.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Audit the full tree
+        run: npm audit --audit-level=high
+
+  licensing:
+    name: SPDX and licence hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Every tracked source and workflow carries an SPDX identifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          while IFS= read -r file; do
+            case "${file}" in
+              # Documents, data and licence texts carry their grant elsewhere;
+              # public/ is generated site output, not source.
+              *.md|*.json|*.asc|*.cff|LICENSE*|*.svg|*.txt|*.lock) continue ;;
+              public/*) continue ;;
+            esac
+            if ! grep -q 'SPDX-License-Identifier' "${file}"; then
+              echo "::error file=${file}::no SPDX-License-Identifier header"
+              missing=1
+            fi
+          done < <(git ls-files '*.js' '*.cjs' '*.mjs' '*.ts' '*.sh' '*.yml' '*.yaml')
+          exit "${missing}"
+
+      - name: Both licence texts are present and complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in LICENSE-APACHE LICENSE-MIT; do
+            if [ ! -s "${file}" ]; then
+              echo "::error::${file} is missing or empty"
+              exit 1
+            fi
+            bytes="$(wc -c < "${file}")"
+            if [ "${bytes}" -lt 500 ]; then
+              echo "::error::${file} is only ${bytes} bytes; it looks truncated"
+              exit 1
+            fi
+          done

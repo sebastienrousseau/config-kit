@@ -1,4 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Sebastien Rousseau <sebastian.rousseau@gmail.com>
 # SPDX-License-Identifier: Apache-2.0 OR MIT
+
+# Self-contained on purpose.
+#
+# Every other package in the family calls the reusable workflows in
+# sebastienrousseau/config, but this one cannot: those repositories depend on
+# this package, so if this package's release pipeline depended on them the
+# family could never be bootstrapped from scratch. The root of a dependency
+# graph does not get to have dependencies.
+#
+# npm provenance also only works inside a supported CI provider, so publishing
+# happens here and never from a developer machine.
 
 name: Publish Package
 
@@ -17,14 +29,148 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    name: Release
-    uses: sebastienrousseau/config/.github/workflows/reusable-publish.yml@main
+  verify:
+    name: Verify the release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.manifest.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Install from the committed lockfile
+        run: npm ci
+
+      - name: Run the test suite
+        run: npm test
+
+      - name: Read the manifest
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "releasing @sebastienrousseau/config-kit@${version}"
+
+      - name: Tag matches the manifest version
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          set -euo pipefail
+          normalised="${TAG#v}"
+          if [ "${normalised}" != "${VERSION}" ]; then
+            echo "::error::release tag ${TAG} does not match package.json version ${VERSION}"
+            exit 1
+          fi
+
+      - name: This version is not already on the registry
+        shell: bash
+        env:
+          VERSION: ${{ steps.manifest.outputs.version }}
+        run: |
+          set -euo pipefail
+          if npm view "@sebastienrousseau/config-kit@${VERSION}" version >/dev/null 2>&1; then
+            echo "::error::@sebastienrousseau/config-kit@${VERSION} is already published; bump the version"
+            exit 1
+          fi
+          echo "@sebastienrousseau/config-kit@${VERSION} is free"
+
+      - name: Generate an SBOM
+        run: npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json
+
+      - name: Attach the SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
+
+  npmjs:
+    name: Publish to npmjs
+    needs: verify
+    runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
+      id-token: write # required for provenance
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # npm trusted publishing (OIDC) requires npm >= 11.5.1 on Node >= 22.14,
+      # so this job pins 22 regardless of the package's supported floor.
+      # package-manager-cache is off because a cached npm can shadow the version
+      # OIDC needs.
+      - name: Set up Node.js for npmjs
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+
+      - name: Install from the committed lockfile
+        run: npm ci
+
+      - name: Publish (dry run)
+        if: inputs.dry_run
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # With a trusted publisher configured for this package on npmjs.com, the
+      # CLI authenticates over OIDC and attaches provenance on its own; the
+      # token below is never used and the secret can be deleted. It stays only
+      # so a package whose trusted publisher is not configured yet still
+      # releases instead of failing.
+      - name: Publish with SLSA provenance
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github-packages:
+    name: Publish to GitHub Packages
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
       packages: write
-    with:
-      node-version: '20'
-      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
-    secrets: inherit
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js for GitHub Packages
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@sebastienrousseau'
+
+      - name: Install from the committed lockfile
+        run: npm ci
+
+      - name: Publish (dry run)
+        if: inputs.dry_run
+        run: npm publish --access public --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
