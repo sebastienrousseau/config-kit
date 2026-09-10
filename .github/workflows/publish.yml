@@ -174,8 +174,21 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Re-running a release must not fail because GitHub Packages already has
+      # the version. Only that specific conflict is tolerated; anything else
+      # still fails the job.
       - name: Publish
         if: ${{ !inputs.dry_run }}
-        run: npm publish --access public
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          if npm publish --access public 2>&1 | tee publish.log; then
+            exit 0
+          fi
+          if grep -qE 'E409|[Cc]annot publish over' publish.log; then
+            echo "::notice::already present on GitHub Packages; nothing to do"
+            exit 0
+          fi
+          exit 1
