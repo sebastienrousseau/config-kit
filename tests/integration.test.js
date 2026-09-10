@@ -296,6 +296,24 @@ describe("licensing and layout", () => {
     );
   });
 
+  it("rejects a source file containing a NUL byte", () => {
+    // Constructed at runtime so this test file stays plain text itself.
+    const nul = String.fromCharCode(0);
+    expectRejected(
+      {
+        write: {
+          "index.cjs":
+            "// " +
+            SPDX +
+            '\n"use strict";\n\n// sentinel: ' +
+            nul +
+            "\nmodule.exports = { rules: {} };\n",
+        },
+      },
+      "contains a NUL byte",
+    );
+  });
+
   it("rejects a workflow with no SPDX header", () => {
     expectRejected(
       {
