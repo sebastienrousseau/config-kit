@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: '@sebastienrousseau/config-kit'
+abstract: >-
+  Shared conformance test kit for the @sebastienrousseau configuration family:
+  packaging, typing, resolvability and real-tool validation in one suite.
+type: software
+authors:
+  - family-names: Rousseau
+    given-names: Sebastien
+license: Apache-2.0 OR MIT
+version: 0.0.7
+date-released: '2026-09-10'
+repository-code: 'https://github.com/sebastienrousseau/config-kit'

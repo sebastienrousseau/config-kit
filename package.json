@@ -1,0 +1,52 @@
+{
+  "name": "@sebastienrousseau/config-kit",
+  "version": "0.0.7",
+  "description": "Shared conformance test kit for the @sebastienrousseau configuration family: packaging, typing, resolvability and real-tool validation in one suite",
+  "author": "Sebastien Rousseau <sebastienrousseau@users.noreply.github.com>",
+  "license": "Apache-2.0 OR MIT",
+  "homepage": "https://github.com/sebastienrousseau/config-kit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sebastienrousseau/config-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sebastienrousseau/config-kit/issues"
+  },
+  "keywords": [
+    "config",
+    "conformance",
+    "testkit",
+    "packaging",
+    "validation",
+    "monorepo-standard"
+  ],
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "require": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/",
+    "LICENSE",
+    "LICENSE-APACHE",
+    "LICENSE-MIT"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "node --test --experimental-test-coverage --test-coverage-exclude=\"tests/**\" --test-coverage-exclude=\"lib/validators.js\" --test-coverage-lines=95 --test-coverage-branches=85 --test-coverage-functions=95 tests/unit.test.js tests/parsers.test.js tests/validators.test.js tests/integration.test.js",
+    "lint": "node --check index.js && for f in lib/*.js; do node --check \"$f\"; done",
+    "test:unit": "node --test tests/unit.test.js tests/parsers.test.js tests/validators.test.js",
+    "test:e2e": "node --test tests/integration.test.js"
+  }
+}

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+
+name: Publish Package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate the release without publishing'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Release
+    uses: sebastienrousseau/config/.github/workflows/reusable-publish.yml@main
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    with:
+      node-version: '20'
+      dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+    secrets: inherit
