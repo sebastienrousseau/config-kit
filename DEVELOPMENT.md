@@ -24,12 +24,17 @@ Node 20 or newer, as declared in `engines.node`.
 ```sh
 npm run test:unit
 npm run test:e2e
+npm run test:coverage   # the CI coverage gate
 ```
 
 ## Coverage policy
 
 The gate is 95% lines, 85% branches and 95% functions over `lib/`, excluding
-`lib/validators.js`.
+`lib/validators.js`. It lives in `npm run test:coverage`, not `npm test`: the
+`--test-coverage-*` threshold flags arrived well after this package's Node
+floor, so gating the default test script on them would break `npm test` for
+anyone on the oldest supported Node. CI runs the gate once, on the newest
+version in the matrix.
 
 That exclusion is deliberate. A validator's success path only executes with the
 real tool installed, which happens in the 38 consuming repositories, not here.

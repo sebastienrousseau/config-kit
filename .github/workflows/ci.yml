@@ -36,3 +36,28 @@ jobs:
 
       - name: Run the test suite
         run: npm test
+
+  coverage:
+    name: Coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The threshold flags landed well after this package's Node floor, so the
+      # gate runs on the newest version in the matrix rather than gating every
+      # contributor's `npm test` on their local Node.
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+
+      - name: Install from the committed lockfile
+        run: npm ci
+
+      # 95% lines / 85% branches / 95% functions over lib/, excluding
+      # validators.js. The rationale is in DEVELOPMENT.md.
+      - name: Enforce the coverage threshold
+        run: npm run test:coverage
