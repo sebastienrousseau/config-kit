@@ -1,6 +1,6 @@
 {
   "name": "@sebastienrousseau/config-kit",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "Shared conformance test kit for the @sebastienrousseau configuration family: packaging, typing, resolvability and real-tool validation in one suite",
   "author": "Sebastien Rousseau <sebastienrousseau@users.noreply.github.com>",
   "license": "Apache-2.0 OR MIT",
@@ -26,7 +26,8 @@
     ".": {
       "types": "./index.d.ts",
       "require": "./index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
