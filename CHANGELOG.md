@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-09-10
+
+### Fixed
+
+- Windows: `npm pack` and the `node_modules/.bin` tools are now spawned through
+  the shell. Since the CVE-2024-27980 mitigation Node refuses to `execFile` a
+  `.cmd` shim directly, so every Windows job failed with
+  `spawnSync npm.cmd EINVAL` and took three tarball assertions down with it.
+  Appending `.cmd` was not enough; `shell: true` is the supported form.
+- Windows: the ESM entrypoint URL is built with `pathToFileURL` rather than
+  string concatenation. `"file://" + "D:\\a\\repo\\index.mjs"` is not a
+  valid URL.
+
+
 ## [0.0.7] - 2026-09-10
 
 ### Added
