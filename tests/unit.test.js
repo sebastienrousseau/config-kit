@@ -73,6 +73,12 @@ describe("declaredShape", () => {
     assert.equal(declaredShape("export {};"), null);
   });
 
+  it("gives up on an unterminated declaration in linear time", () => {
+    const started = Date.now();
+    assert.equal(declaredShape("declare const a:" + " ".repeat(100000)), null);
+    assert.ok(Date.now() - started < 1000, "declaration scan is quadratic");
+  });
+
   it("detects the four real mismatches this kit was written to catch", () => {
     // docker-config / lefthook-config shipped an object interface over a string.
     const objectDecl =
@@ -220,6 +226,37 @@ describe("coversPath", () => {
 
   it("strips a leading ./ from manifest entries", () => {
     assert.equal(coversPath(["./index.cjs"], "index.cjs"), true);
+  });
+
+  it("strips trailing slashes in linear time", () => {
+    assert.equal(coversPath(["lib///"], "lib/shape.js"), true);
+    const started = Date.now();
+    coversPath(["a" + "/".repeat(100000) + "x"], "b");
+    assert.ok(Date.now() - started < 1000, "trailing-slash trim is quadratic");
+  });
+});
+
+describe("pattern", () => {
+  const { versionHeading, pinPattern } = require("../lib/pattern.js");
+
+  it("matches a CHANGELOG heading for a version with build metadata", () => {
+    const heading = versionHeading("1.0.0+build.1");
+    assert.match("## [1.0.0+build.1] - 2026-11-05", heading);
+    assert.doesNotMatch("## [1.0.00build.1]", heading);
+  });
+
+  it("treats every regex metacharacter in a package name literally", () => {
+    const pins = [
+      ..."see legacy(pkg)@1.2.3".matchAll(pinPattern("legacy(pkg)")),
+    ];
+    assert.deepEqual(
+      pins.map((m) => m[1]),
+      ["1.2.3"],
+    );
+    assert.equal(
+      [..."legacypkg@1.2.3".matchAll(pinPattern("legacy(pkg)"))].length,
+      0,
+    );
   });
 });
 
