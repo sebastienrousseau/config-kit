@@ -120,14 +120,20 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
 
-      # Trusted publishing needs npm >= 11.5.1, and the npm bundled with a Node
-      # release lags well behind: Node 22 still ships npm 10, which has no OIDC
-      # support at all and fails with "need auth". Pin the CLI explicitly rather
-      # than inferring it from the Node version.
+      # Trusted publishing needs npm >= 11.5.1. Node 24 ships npm 11.6+, so
+      # verify the bundled CLI meets the OIDC floor instead of running an
+      # unpinned global install.
       - name: Ensure an npm that can do OIDC
         run: |
-          npm install -g npm@^11.5.1
-          npm --version
+          node -e '
+            const { execFileSync } = require("node:child_process");
+            const ver = execFileSync("npm", ["--version"], { encoding: "utf8" }).trim();
+            const [maj, min, pat] = ver.split(".").map(Number);
+            if (maj < 11 || (maj === 11 && (min < 5 || (min === 5 && pat < 1)))) {
+              throw new Error(`npm >= 11.5.1 required for OIDC, got ${ver}`);
+            }
+            console.log(`npm ${ver} (>= 11.5.1)`);
+          '
 
       - name: Install from the committed lockfile
         run: npm ci
