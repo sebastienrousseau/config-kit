@@ -7,6 +7,7 @@ const {
   runSuite,
   REQUIRED_FILES,
   coversPath,
+  packEntryFiles,
   localLinks,
   exportTargets,
 } = require("./lib/suite.js");
@@ -29,6 +30,7 @@ module.exports = {
     toolState,
     checkerFor,
     coversPath,
+    packEntryFiles,
     localLinks,
     exportTargets,
   },
