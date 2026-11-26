@@ -17,6 +17,7 @@ const {
   resolveRef,
   checkerFor,
   coversPath,
+  packEntryFiles,
   localLinks,
   exportTargets,
 } = kit.internals;
@@ -207,6 +208,31 @@ describe("resolveRef", () => {
     assert.equal(result.ok, true, JSON.stringify(result));
     assert.match(result.via, /inside faketool/);
     fs.rmSync(tmp, { recursive: true, force: true });
+  });
+});
+
+describe("packEntryFiles", () => {
+  const files = [{ path: "index.cjs" }, { path: "lib/suite.js" }];
+
+  it("reads the array npm 11 and earlier print", () => {
+    assert.deepEqual(packEntryFiles([{ name: "x", files }]), [
+      "index.cjs",
+      "lib/suite.js",
+    ]);
+  });
+
+  it("reads the object keyed by package name npm 12 prints", () => {
+    assert.deepEqual(packEntryFiles({ "@scope/x": { name: "x", files } }), [
+      "index.cjs",
+      "lib/suite.js",
+    ]);
+  });
+
+  it("returns nothing for empty or malformed output", () => {
+    assert.deepEqual(packEntryFiles([]), []);
+    assert.deepEqual(packEntryFiles({}), []);
+    assert.deepEqual(packEntryFiles(null), []);
+    assert.deepEqual(packEntryFiles({ x: { files: "nope" } }), []);
   });
 });
 

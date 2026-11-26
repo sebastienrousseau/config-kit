@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The tarball checks read npm 12's `npm pack --json` output, an object keyed
+  by package name, instead of finding no files and failing every exports
+  target. npm 11 and earlier output is unchanged.
+
 ## [0.0.9] - 2026-11-16
 
 ### Changed
